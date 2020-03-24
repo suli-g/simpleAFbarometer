@@ -33,7 +33,7 @@ public class MainActivity extends AppCompatActivity {
     Double XCoord;
     Double YCoord;
     Double ZCoord;
-    GPSdata XYZ;
+    GPSData XYZ;
     Location Location;
     StringBuilder FILE = new StringBuilder();
     FileOutputStream Out;
@@ -42,7 +42,11 @@ public class MainActivity extends AppCompatActivity {
     Uri path;
     Intent fileIntent;
 
-    //pause loop for X seconds
+    // Strings
+    String STOP;
+    String START;
+    String RECORDING;
+    String HEADINGS;
     public static void pause(int ms) {
         try {
             Thread.sleep(ms);
@@ -56,30 +60,35 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         //Variables
-        StateView = (TextView) findViewById(R.id.textView);
-        StartStopBtn = (Button) findViewById(R.id.button);
+        StateView = findViewById(R.id.textView);
+        StartStopBtn = findViewById(R.id.button);
 
+        STOP = getString(R.string.stop);
+        START = getString(R.string.start);
+        RECORDING = getString(R.string.recording);
+        HEADINGS = getString(R.string.headings);
         //click listeners
         StartStopBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
 
-            if (State==false){
-                StartStopBtn.setText("Stop");
+            if (!State){
+                StartStopBtn.setText(STOP);
                 State=true;
-                StateView.setText("     Recording GPS data." + "\n" + "Press"+" STOP "+"to save data");
+                StateView.setText(RECORDING);
                 i++;
-                XYZ = new GPSdata(getApplicationContext());
+                XYZ = new GPSData(getApplicationContext());
                 Location = XYZ.getLocation();
-                FILE = new StringBuilder();FILE.append("X,Y,Z");
-                GPSdataLoop LOOP = new GPSdataLoop();
+                FILE = new StringBuilder();
+                FILE.append(HEADINGS);
+                GPSDataLoop LOOP = new GPSDataLoop();
                 LOOP.execute();
             }else {
-                StartStopBtn.setText("Start");
+                StartStopBtn.setText(START);
                 State=false;
-                StateView.setText("Saved to: " + getFilesDir());
+                StateView.setText(getString(R.string.saved_to, getFilesDir()));
                 i++;
-                if (i > 0 && State == false) {//make sure button was pressed more than once
+                if (i > 0 && !State) {//make sure button was pressed more than once
 
                     //Out = null;
                     try {
@@ -95,13 +104,13 @@ public class MainActivity extends AppCompatActivity {
 
                         //exporting file
                         contx = getApplicationContext();
-                        filelocation = new File(getFilesDir(), "XYZ.csv");
-                        path =  FileProvider.getUriForFile(contx, "com.absalasa", filelocation);
+                        filelocation = new File(getFilesDir(), getString(R.string.csvFile));
+                        path =  FileProvider.getUriForFile(contx, getString(R.string.authority), filelocation);
                         fileIntent = new Intent(Intent.ACTION_SEND);
-                        fileIntent.setType("text/csv");
+                        fileIntent.setType(getString(R.string.headerType));
                         fileIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                         fileIntent.putExtra(Intent.EXTRA_STREAM, path);
-                        startActivity(Intent.createChooser(fileIntent, "mail"));
+                        startActivity(Intent.createChooser(fileIntent, getString(R.string.intent)));
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -112,12 +121,12 @@ public class MainActivity extends AppCompatActivity {
     }//OnCreate
 
     public void GPS (){
-        XYZ = new GPSdata(getApplicationContext());
+        XYZ = new GPSData(getApplicationContext());
         Location = XYZ.getLocation();
             }
 
     //runs loop until stopped by StartStopBtn
-    public class GPSdataLoop extends AsyncTask<Void, Void, Void> {
+    public class GPSDataLoop extends AsyncTask<Void, Void, Void> {
 
         @Override
         protected void onPreExecute() {
@@ -132,7 +141,7 @@ public class MainActivity extends AppCompatActivity {
         protected Void doInBackground(Void... voids) {
             try {
                 if (Location != null) {
-                    while (State == true) {//State == true
+                    while (State) {//State
 
                         Location = XYZ.getLocation();
                         //get coordinates
@@ -140,7 +149,7 @@ public class MainActivity extends AppCompatActivity {
                         YCoord = Location.getLongitude();
                         ZCoord = Location.getAltitude();
                         //append file
-                        FILE.append("\n" + String.valueOf(XCoord) + "," + String.valueOf(YCoord) + "," + String.valueOf(ZCoord));
+                        FILE.append(getString(R.string.coordinates,XCoord, YCoord, ZCoord));
                         //XCoord = null;
                         //YCoord = null;
                         //ZCoord = null;
@@ -149,7 +158,7 @@ public class MainActivity extends AppCompatActivity {
                         //XYZ = new GPSdata(getApplicationContext());
                         //Location = XYZ.getLocation();
                         //GPS();
-                        if (State == false) break;
+                        if (!State) break;
                     }//while loop
                 }
             } catch (Exception e) {
@@ -160,11 +169,11 @@ public class MainActivity extends AppCompatActivity {
     }//GPS data loop
 
 
-    public class GPSdata implements LocationListener {
+    public class GPSData implements LocationListener {
         Context context;
 
 
-        public GPSdata(Context c) {
+        public GPSData(Context c) {
             context = c;
         }
 
