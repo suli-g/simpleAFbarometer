@@ -1,11 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE resources[
+    <!ENTITY appname "XYZ">
+    <!ENTITY stop "Stop">
+]>
+
 <resources>
     <string name="app_name">XYZ</string>
-    <string name="stop">Stop</string>
+    <string name="stop">&stop;</string>
     <string name="start">Start</string>
     <string name="headings">X,Y,Z</string>
     <string name="coordinates">%1$d,%2$d,%3$d</string>
     <string name="saved_to">Saved to: %1$s.</string>
-    <string name="recording">Recording GPS data.<br/>Press @strings/stop to save data</string>
+    <string name="recording">Recording GPS data.<br/>Press &stop; to save data</string>
     <string name="csvFile">XYZ.csv</string>
     <string name="authority">com.absalasa</string>
     <string name="headerType">text/csv</string>
