@@ -5,7 +5,9 @@
 ]>
 
 <resources>
-    <string name="app_name">XYZ</string>
+    <string name="permission_denied">Permission denied</string>
+    <string name="enable_gps">Enable GPS</string>
+    <string name="app_name" translatable="false">XYZ</string>
     <string name="stop">&stop;</string>
     <string name="start">Start</string>
     <string name="headings">X,Y,Z</string>
@@ -13,7 +15,7 @@
     <string name="saved_to">Saved to: %1$s.</string>
     <string name="recording">Recording GPS data.<br/>Press &stop; to save data</string>
     <string name="csvFile">XYZ.csv</string>
-    <string name="authority">com.absalasa</string>
-    <string name="headerType">text/csv</string>
-    <string name="intent">mail</string>
+    <string name="authority" translatable="false">com.absalasa</string>
+    <string name="headerType" translatable="false">text/csv</string>
+    <string name="intent" translatable="false">mail</string>
 </resources>
