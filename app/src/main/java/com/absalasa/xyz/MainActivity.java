@@ -26,8 +26,7 @@ import java.io.IOException;
 
 public class MainActivity extends AppCompatActivity {
     //variables
-    boolean State = false;//Checks StartStopBtn state
-    int i = 0;
+    boolean working = false;
     TextView StateView;
     Button  StartStopBtn;
     Double XCoord;
@@ -61,6 +60,57 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    protected void toggleWork() {
+        working = !working;
+        if (working) {
+            StartStopBtn.setText(STOP);
+            StateView.setText(RECORDING);
+        } else {
+            StartStopBtn.setText(START);
+            StateView.setText(SAVED_TO);
+        }
+    }
+
+    View.OnClickListener handleClick = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            toggleWork();
+            if (working){
+                XYZ = new GPSData(getApplicationContext());
+                Location = XYZ.getLocation();
+                FILE = new StringBuilder();FILE.append(HEADINGS);
+                GPSDataLoop LOOP = new GPSDataLoop();
+                LOOP.execute();
+            }
+            else {
+                    //Out = null;
+                    try {
+                        Out = openFileOutput(CSV_FILE, Context.MODE_PRIVATE);
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                    }
+                    try {
+                        //saving file
+                        Out.write(FILE.toString().getBytes());
+                        //Toast.makeText(MainActivity.this, "Saved to: " + getFilesDir() + "/" + "XYZ.csv", Toast.LENGTH_LONG).show();
+                        Out.close();
+
+                        //exporting file
+                        contx = getApplicationContext();
+                        filelocation = new File(getFilesDir(), CSV_FILE);
+                        path =  FileProvider.getUriForFile(contx, AUTHORITY, filelocation);
+                        fileIntent = new Intent(Intent.ACTION_SEND);
+                        fileIntent.setType(HEADER_TYPE);
+                        fileIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        fileIntent.putExtra(Intent.EXTRA_STREAM, path);
+                        startActivity(Intent.createChooser(fileIntent, INTENT));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+            }
+        }//onclick
+    };
+    
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -80,54 +130,7 @@ public class MainActivity extends AppCompatActivity {
         ENABLED_GPS = getString(R.string.enable_gps);
         PERMISSION_DENIED = getString(R.string.permission_denied);
         //click listeners
-        StartStopBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (State==false){
-                    StartStopBtn.setText(STOP);
-                    State=true;
-                    StateView.setText(RECORDING);
-                    i++;
-                    XYZ = new GPSData(getApplicationContext());
-                    Location = XYZ.getLocation();
-                    FILE = new StringBuilder();FILE.append(HEADINGS);
-                    GPSDataLoop LOOP = new GPSDataLoop();
-                    LOOP.execute();
-                }else {
-                    StartStopBtn.setText(START);
-                    State=false;
-                    StateView.setText(SAVED_TO);
-                    i++;
-                    if (i > 0 && State == false) {//make sure button was pressed more than once
-
-                        //Out = null;
-                        try {
-                            Out = openFileOutput(CSV_FILE, Context.MODE_PRIVATE);
-                        } catch (FileNotFoundException e) {
-                            e.printStackTrace();
-                        }
-                        try {
-                            //saving file
-                            Out.write(FILE.toString().getBytes());
-                            //Toast.makeText(MainActivity.this, "Saved to: " + getFilesDir() + "/" + "XYZ.csv", Toast.LENGTH_LONG).show();
-                            Out.close();
-
-                            //exporting file
-                            contx = getApplicationContext();
-                            filelocation = new File(getFilesDir(), CSV_FILE);
-                            path =  FileProvider.getUriForFile(contx, AUTHORITY, filelocation);
-                            fileIntent = new Intent(Intent.ACTION_SEND);
-                            fileIntent.setType(HEADER_TYPE);
-                            fileIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                            fileIntent.putExtra(Intent.EXTRA_STREAM, path);
-                            startActivity(Intent.createChooser(fileIntent, INTENT));
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-            }//onclick
-        });//listener
+        StartStopBtn.setOnClickListener(handleClick);
     }//OnCreate
 
     public void GPS (){
@@ -151,7 +154,7 @@ public class MainActivity extends AppCompatActivity {
         protected Void doInBackground(Void... voids) {
             try {
                 if (Location != null) {
-                    while (State == true) {//State == true
+                    while (working == true) {//State == true
 
                         Location = XYZ.getLocation();
                         //get coordinates
@@ -163,12 +166,11 @@ public class MainActivity extends AppCompatActivity {
                         //XCoord = null;
                         //YCoord = null;
                         //ZCoord = null;
-                        i++;
                         pause(2000);
                         //XYZ = new GPSdata(getApplicationContext());
                         //Location = XYZ.getLocation();
                         //GPS();
-                        if (State == false) break;
+                        if (working == false) break;
                     }//while loop
                 }
             } catch (Exception e) {
@@ -181,25 +183,26 @@ public class MainActivity extends AppCompatActivity {
 
     public class GPSData implements LocationListener {
         Context context;
-
-
         public GPSData(Context c) {
             context = c;
         }
 
         public Location getLocation() {
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED){
-                Toast.makeText(context,PERMISSION_DENIED,Toast.LENGTH_SHORT).show();
-                return null;
+            boolean permission_granted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+            if (permission_granted){
+                LocationManager LM = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+                boolean gps_enabled = LM != null && LM.isProviderEnabled(LocationManager.GPS_PROVIDER);
+                if (!gps_enabled) {
+                    Toast.makeText(context,ENABLED_GPS,Toast.LENGTH_LONG).show();
+                }
+                else {
+                    LM.requestLocationUpdates(LocationManager.GPS_PROVIDER,500,0,this);
+                    Location L = LM.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                    return L;
+                }
             }
-            LocationManager LM = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
-            boolean isGPSEnabled = LM != null && LM.isProviderEnabled(LocationManager.GPS_PROVIDER);
-            if(isGPSEnabled){
-                LM.requestLocationUpdates(LocationManager.GPS_PROVIDER,500,0,this);
-                Location L = LM.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-                return L;
-            }else{
-                Toast.makeText(context,ENABLED_GPS,Toast.LENGTH_LONG).show();
+            else {
+                Toast.makeText(context,PERMISSION_DENIED,Toast.LENGTH_SHORT).show();
             }
             return null;
         }
