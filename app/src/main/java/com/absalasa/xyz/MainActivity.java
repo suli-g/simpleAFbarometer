@@ -4,6 +4,10 @@ import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -36,8 +40,8 @@ public class MainActivity extends AppCompatActivity {
     Location Location;
     StringBuilder FILE = new StringBuilder();
     FileOutputStream Out;
-    Context contx;
-    File filelocation;
+    Context ctx;
+    File fileLocation;
     Uri path;
     Intent fileIntent;
     String STOP;
@@ -51,7 +55,29 @@ public class MainActivity extends AppCompatActivity {
     String HEADER_TYPE;
     String ENABLED_GPS;
     String PERMISSION_DENIED;
-    //pause loop for X seconds
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        ctx = getApplicationContext();
+        //Variables
+        StateView = findViewById(R.id.textView);
+        StartStopBtn = findViewById(R.id.button);
+        STOP = getString(R.string.stop);
+        START = getString(R.string.start);
+        RECORDING = getString(R.string.recording);
+        HEADINGS = getString(R.string.headings);
+        INTENT = getString(R.string.intent);
+        AUTHORITY = getString(R.string.authority);
+        SAVED_TO = getString(R.string.saved_to, getFilesDir(), CSV_FILE);
+        CSV_FILE = getString(R.string.csvFile);
+        HEADER_TYPE = getString(R.string.headerType);
+        ENABLED_GPS = getString(R.string.enable_gps);
+        PERMISSION_DENIED = getString(R.string.permission_denied);
+        StartStopBtn.setOnClickListener(handleClick);
+    }
+
     public static void pause(int ms) {
         try {
             Thread.sleep(ms);
@@ -83,94 +109,77 @@ public class MainActivity extends AppCompatActivity {
                 LOOP.execute();
             }
             else {
-                    //Out = null;
-                    try {
-                        Out = openFileOutput(CSV_FILE, Context.MODE_PRIVATE);
-                    } catch (FileNotFoundException e) {
-                        e.printStackTrace();
-                    }
-                    try {
-                        //saving file
-                        Out.write(FILE.toString().getBytes());
-                        //Toast.makeText(MainActivity.this, "Saved to: " + getFilesDir() + "/" + "XYZ.csv", Toast.LENGTH_LONG).show();
-                        Out.close();
-
-                        //exporting file
-                        contx = getApplicationContext();
-                        filelocation = new File(getFilesDir(), CSV_FILE);
-                        path =  FileProvider.getUriForFile(contx, AUTHORITY, filelocation);
-                        fileIntent = new Intent(Intent.ACTION_SEND);
-                        fileIntent.setType(HEADER_TYPE);
-                        fileIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                        fileIntent.putExtra(Intent.EXTRA_STREAM, path);
-                        startActivity(Intent.createChooser(fileIntent, INTENT));
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                //Out = null;
+                try {
+                    Out = openFileOutput(CSV_FILE, Context.MODE_PRIVATE);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+                try {
+                    //saving file
+                    Out.write(FILE.toString().getBytes());
+                    Toast.makeText(MainActivity.this, SAVED_TO, Toast.LENGTH_LONG).show();
+                    Out.close();
+                    exportFile();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         }//onclick
     };
-    
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        //Variables
-        StateView = (TextView) findViewById(R.id.textView);
-        StartStopBtn = (Button) findViewById(R.id.button);
-        STOP = getString(R.string.stop);
-        START = getString(R.string.start);
-        RECORDING = getString(R.string.recording);
-        HEADINGS = getString(R.string.headings);
-        INTENT = getString(R.string.intent);
-        AUTHORITY = getString(R.string.authority);
-        SAVED_TO = getString(R.string.saved_to, getFilesDir());
-        CSV_FILE = getString(R.string.csvFile);
-        HEADER_TYPE = getString(R.string.headerType);
-        ENABLED_GPS = getString(R.string.enable_gps);
-        PERMISSION_DENIED = getString(R.string.permission_denied);
-        //click listeners
-        StartStopBtn.setOnClickListener(handleClick);
-    }//OnCreate
 
-    public void GPS (){
-        XYZ = new GPSData(getApplicationContext());
-        Location = XYZ.getLocation();
+    public void exportFile() {
+        //exporting file
+        fileLocation = new File(getFilesDir(), CSV_FILE);
+        path =  FileProvider.getUriForFile(ctx, AUTHORITY, fileLocation);
+        fileIntent = new Intent(Intent.ACTION_SEND);
+        fileIntent.setType(HEADER_TYPE);
+        fileIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        fileIntent.putExtra(Intent.EXTRA_STREAM, path);
+        startActivity(Intent.createChooser(fileIntent, INTENT));
     }
 
-    //runs loop until stopped by StartStopBtn
+   //runs loop until stopped by StartStopBtn
     public class GPSDataLoop extends AsyncTask<Void, Void, Void> {
+        double pressure;
+        SensorManager sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+        Sensor pressureSensor = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE);
+        SensorEventListener sensorEventListener = new SensorEventListener() {
+           @Override
+           public void onSensorChanged(SensorEvent sensorEvent) {
+               float[] values = sensorEvent.values;
+               pressure = values[0];
+           }
+
+           @Override
+           public void onAccuracyChanged(Sensor sensor, int i) {
+
+           }
+       };
 
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            //GPS();
-        }
-        protected void onPostExecute() {
-
+            sensorManager.registerListener(sensorEventListener, pressureSensor, SensorManager.SENSOR_DELAY_UI);
         }
 
-        @Override
+       @Override
         protected Void doInBackground(Void... voids) {
             try {
                 if (Location != null) {
-                    while (working == true) {//State == true
-
+                    while (working) {
                         Location = XYZ.getLocation();
                         //get coordinates
                         XCoord = Location.getLatitude();
                         YCoord = Location.getLongitude();
                         ZCoord = Location.getAltitude();
                         //append file
-                        FILE.append("\n" + String.valueOf(XCoord) + "," + String.valueOf(YCoord) + "," + String.valueOf(ZCoord));
-                        //XCoord = null;
-                        //YCoord = null;
-                        //ZCoord = null;
+                        FILE.append(getString(R.string.coordinates, String.valueOf(XCoord), String.valueOf(YCoord) ,String.valueOf(ZCoord), String.valueOf(pressure)));
                         pause(2000);
                         //XYZ = new GPSdata(getApplicationContext());
                         //Location = XYZ.getLocation();
                         //GPS();
-                        if (working == false) break;
+                        if (!working) break;
                     }//while loop
                 }
             } catch (Exception e) {
@@ -181,29 +190,26 @@ public class MainActivity extends AppCompatActivity {
     }//GPS data loop
 
 
-    public class GPSData implements LocationListener {
+    public class GPSData implements LocationListener, SensorEventListener {
         Context context;
+        LocationManager locationManager;
         public GPSData(Context c) {
             context = c;
         }
 
         public Location getLocation() {
             boolean permission_granted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-            if (permission_granted){
-                LocationManager LM = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
-                boolean gps_enabled = LM != null && LM.isProviderEnabled(LocationManager.GPS_PROVIDER);
-                if (!gps_enabled) {
-                    Toast.makeText(context,ENABLED_GPS,Toast.LENGTH_LONG).show();
-                }
-                else {
-                    LM.requestLocationUpdates(LocationManager.GPS_PROVIDER,500,0,this);
-                    Location L = LM.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            if (permission_granted) locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+            if (locationManager != null){
+                boolean gps_enabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+                if (gps_enabled) {
+                    locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,500,0,this);
+                    Location L = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
                     return L;
                 }
             }
-            else {
-                Toast.makeText(context,PERMISSION_DENIED,Toast.LENGTH_SHORT).show();
-            }
+            String ERROR = permission_granted ? PERMISSION_DENIED : ENABLED_GPS;
+            Toast.makeText(context,ERROR,Toast.LENGTH_SHORT).show();
             return null;
         }
 
@@ -224,6 +230,16 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onProviderDisabled(String provider) {
+
+        }
+
+        @Override
+        public void onSensorChanged(SensorEvent event) {
+
+        }
+
+        @Override
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
 
         }
     }
