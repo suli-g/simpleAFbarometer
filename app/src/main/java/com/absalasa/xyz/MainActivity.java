@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -33,11 +34,10 @@ public class MainActivity extends AppCompatActivity {
     boolean working = false;
     TextView StateView;
     Button  StartStopBtn;
-    Double XCoord;
-    Double YCoord;
-    Double ZCoord;
+    String[] data;
     GPSData XYZ;
-    Location Location;
+    Location location;
+    double pressure;
     StringBuilder FILE = new StringBuilder();
     FileOutputStream Out;
     Context ctx;
@@ -55,7 +55,7 @@ public class MainActivity extends AppCompatActivity {
     String HEADER_TYPE;
     String ENABLED_GPS;
     String PERMISSION_DENIED;
-
+    Resources res;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -64,6 +64,7 @@ public class MainActivity extends AppCompatActivity {
         //Variables
         StateView = findViewById(R.id.textView);
         StartStopBtn = findViewById(R.id.button);
+        res = getResources();
         STOP = getString(R.string.stop);
         START = getString(R.string.start);
         RECORDING = getString(R.string.recording);
@@ -76,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
         ENABLED_GPS = getString(R.string.enable_gps);
         PERMISSION_DENIED = getString(R.string.permission_denied);
         StartStopBtn.setOnClickListener(handleClick);
+        data = new String[4];
     }
 
     public static void pause(int ms) {
@@ -103,7 +105,7 @@ public class MainActivity extends AppCompatActivity {
             toggleWork();
             if (working){
                 XYZ = new GPSData(getApplicationContext());
-                Location = XYZ.getLocation();
+                location = XYZ.getLocation();
                 FILE = new StringBuilder();FILE.append(HEADINGS);
                 GPSDataLoop LOOP = new GPSDataLoop();
                 LOOP.execute();
@@ -141,41 +143,26 @@ public class MainActivity extends AppCompatActivity {
 
    //runs loop until stopped by StartStopBtn
     public class GPSDataLoop extends AsyncTask<Void, Void, Void> {
-        double pressure;
-        SensorManager sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-        Sensor pressureSensor = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE);
-        SensorEventListener sensorEventListener = new SensorEventListener() {
-           @Override
-           public void onSensorChanged(SensorEvent sensorEvent) {
-               float[] values = sensorEvent.values;
-               pressure = values[0];
-           }
-
-           @Override
-           public void onAccuracyChanged(Sensor sensor, int i) {
-
-           }
-       };
-
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            sensorManager.registerListener(sensorEventListener, pressureSensor, SensorManager.SENSOR_DELAY_UI);
         }
 
        @Override
         protected Void doInBackground(Void... voids) {
             try {
-                if (Location != null) {
+                if (location != null) {
                     while (working) {
-                        Location = XYZ.getLocation();
+                        location = XYZ.getLocation();
+                        pressure = XYZ.getPressure();
                         //get coordinates
-                        XCoord = Location.getLatitude();
-                        YCoord = Location.getLongitude();
-                        ZCoord = Location.getAltitude();
+                        data[0] = String.valueOf(location.getLatitude());
+                        data[1] = String.valueOf(location.getLongitude());
+                        data[2] = String.valueOf(location.getAltitude());
+                        data[3] = String.valueOf(pressure);
                         //append file
-                        FILE.append(getString(R.string.coordinates, String.valueOf(XCoord), String.valueOf(YCoord) ,String.valueOf(ZCoord), String.valueOf(pressure)));
-                        pause(2000);
+                        FILE.append(getString(R.string.coordinates, data[0], data[1] , data[2], data[3]));
+                        pause(res.getInteger(R.integer.defaultPause));
                         //XYZ = new GPSdata(getApplicationContext());
                         //Location = XYZ.getLocation();
                         //GPS();
@@ -192,15 +179,39 @@ public class MainActivity extends AppCompatActivity {
 
     public class GPSData implements LocationListener, SensorEventListener {
         Context context;
+        SensorManager sensorManager;
         LocationManager locationManager;
-        public GPSData(Context c) {
+        Sensor pressureSensor;
+
+        GPSData(Context c) {
+            sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+            if (sensorManager != null){
+                pressureSensor = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE);
+                sensorManager.registerListener(sensorEventListener, pressureSensor, SensorManager.SENSOR_DELAY_UI);
+            }
             context = c;
         }
+        SensorEventListener sensorEventListener = new SensorEventListener() {
+            @Override
+            public void onSensorChanged(SensorEvent sensorEvent) {
+                float[] values = sensorEvent.values;
+                pressure = values[0];
+            }
 
-        public Location getLocation() {
+            @Override
+            public void onAccuracyChanged(Sensor sensor, int i) {
+
+            }
+        };
+
+        double getPressure() {
+            return pressure;
+        }
+
+        Location getLocation() {
             boolean permission_granted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
             if (permission_granted) locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
-            if (locationManager != null){
+            if (locationManager != null && sensorManager != null){
                 boolean gps_enabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
                 if (gps_enabled) {
                     locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,500,0,this);

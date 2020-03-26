@@ -10,9 +10,9 @@
     <string name="app_name" translatable="false">XYZ</string>
     <string name="stop">&stop;</string>
     <string name="start">Start</string>
-    <string name="headings">X,Y,Z</string>
-    <string name="coordinates">%1$d,%2$d,%3$d</string>
-    <string name="saved_to">Saved to: %1$s.</string>
+    <string name="headings">X,Y,Z,hPa\n</string>
+    <string name="coordinates">%s,%s,%s,%s\n</string>
+    <string name="saved_to">Saved to: %1$s/%2$s.</string>
     <string name="recording">Recording GPS data.<br/>Press &stop; to save data</string>
     <string name="waiting">Waiting to record GPS Data…</string>
     <string name="csvFile">XYZ.csv</string>
